@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { embedText, chunkText } from "@/lib/openai";
 import { scrapeUrl } from "@/lib/firecrawl";
 import { supabaseAdmin } from "@/lib/supabase";
-
+export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth();
