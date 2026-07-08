@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { openai, embedText, chunkText } from "@/lib/openai";
+import { embedText, chunkText } from "@/lib/openai";
 import { scrapeUrl } from "@/lib/firecrawl";
 import { supabaseAdmin } from "@/lib/supabase";
 
-// POST body: { resumeText: string, jobUrl?: string, jobDescription?: string, jobTitle?: string, company?: string }
-// Provide either jobUrl (scraped via Firecrawl) or jobDescription (raw pasted text).
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth();
@@ -28,6 +26,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Could not extract enough job content" }, { status: 422 });
     }
 
+    // Lazy load OpenAI only at runtime
+    const { OpenAI } = await import('openai');
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
     // 2. Save the job
     const { data: job, error: jobErr } = await supabaseAdmin
       .from("jobs")
@@ -40,13 +44,15 @@ export async function POST(req: NextRequest) {
       })
       .select()
       .single();
+
     if (jobErr || !job) {
       return NextResponse.json({ error: jobErr?.message ?? "Failed to save job" }, { status: 500 });
     }
 
-    // 3. Chunk + embed the job, store embeddings
+    // 3. Chunk + embed the job
     const jobChunks = chunkText(jobText);
     const jobEmbeddings = await Promise.all(jobChunks.map(embedText));
+
     await supabaseAdmin.from("job_embeddings").insert(
       jobChunks.map((chunk_text, i) => ({
         job_id: job.id,
@@ -55,26 +61,25 @@ export async function POST(req: NextRequest) {
       }))
     );
 
-    // 4. Embed the resume as a single query vector (whole-resume context, capped length)
+    // 4. Embed the resume
     const resumeEmbedding = await embedText(resumeText);
 
-    // 5. RAG retrieval: pull the job chunks most similar to the resume, scoped to this job only
+    // 5. RAG retrieval
     const { data: matches, error: matchErr } = await supabaseAdmin.rpc("match_job_chunks_scoped", {
       query_embedding: resumeEmbedding,
       target_job_id: job.id,
       match_count: 6,
     });
+
     if (matchErr) {
       return NextResponse.json({ error: matchErr.message }, { status: 500 });
     }
 
     const topChunks: { chunk_text: string; similarity: number }[] = matches ?? [];
-    const avgSimilarity =
-      topChunks.reduce((sum, m) => sum + m.similarity, 0) / (topChunks.length || 1);
+    const avgSimilarity = topChunks.reduce((sum, m) => sum + m.similarity, 0) / (topChunks.length || 1);
     const fitScore = Math.round(avgSimilarity * 100);
 
-    // 6. Ground the gap analysis in the actually-retrieved chunks (not the whole JD) — this
-    // is the RAG payoff: cheaper prompt, and the model reasons over the parts that matched.
+    // 6. Analysis
     const groundedContext = topChunks.map((c) => `- ${c.chunk_text}`).join("\n");
 
     const systemPrompt = `You are a career advisor. Return ONLY valid JSON, no markdown fences:
@@ -84,10 +89,11 @@ export async function POST(req: NextRequest) {
   "gaps": string[] (things the job wants that the resume doesn't show),
   "recommendation": "apply" | "apply_with_tailoring" | "skip"
 }`;
+
     const userPrompt = `MOST RELEVANT JOB REQUIREMENTS (retrieved via similarity search):\n${groundedContext}\n\nRESUME:\n${resumeText}\n\nComputed fit score: ${fitScore}/100.`;
 
     const completion = await openai.chat.completions.create({
-      model: "gemini-2.5-flash",
+      model: "gpt-4o-mini",   // Fixed model
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -96,14 +102,12 @@ export async function POST(req: NextRequest) {
 
     const raw = completion.choices[0].message.content ?? "{}";
     const cleaned = raw.replace(/```json|```/g, "").trim();
+    
     let analysis;
     try {
       analysis = JSON.parse(cleaned);
     } catch {
-      return NextResponse.json(
-        { error: "Model did not return valid JSON", raw: cleaned },
-        { status: 502 }
-      );
+      return NextResponse.json({ error: "Model did not return valid JSON", raw: cleaned }, { status: 502 });
     }
 
     return NextResponse.json({
@@ -111,11 +115,9 @@ export async function POST(req: NextRequest) {
       fit_score: fitScore,
       ...analysis,
     });
+
   } catch (err: any) {
     console.error("jobs/match error:", err);
-    return NextResponse.json(
-      { error: err?.message ?? "Unknown server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err?.message ?? "Unknown server error" }, { status: 500 });
   }
 }
