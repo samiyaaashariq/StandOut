@@ -34,7 +34,7 @@ Be concrete. Reference the actual text of the resume. Do not give generic advice
       : `RESUME:\n${resumeText}\n\nNo specific job provided — give general ATS and clarity feedback.`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gemini-2.5-flash",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
