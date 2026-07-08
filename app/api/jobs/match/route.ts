@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { embedText, chunkText } from "@/lib/openai";
+import { openai, embedText, chunkText } from "@/lib/openai";
 import { scrapeUrl } from "@/lib/firecrawl";
 import { supabaseAdmin } from "@/lib/supabase";
 export const dynamic = 'force-dynamic';
@@ -82,15 +81,15 @@ export async function POST(req: NextRequest) {
 
     const userPrompt = `MOST RELEVANT JOB REQUIREMENTS (retrieved via similarity search):\n${groundedContext}\n\nRESUME:\n${resumeText}\n\nComputed fit score: ${fitScore}/100.`;
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const completion = await openai.chat.completions.create({
+      model: "gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    });
 
-    const result = await model.generateContent([
-      { text: systemPrompt },
-      { text: userPrompt },
-    ]);
-
-    const raw = result.response.text() ?? "{}";
+    const raw = completion.choices[0].message.content ?? "{}";
     const cleaned = raw.replace(/```json|```/g, "").trim();
 
     let analysis;
