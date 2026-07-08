@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { embedText, chunkText } from "@/lib/openai";
 import { scrapeUrl } from "@/lib/firecrawl";
 import { supabaseAdmin } from "@/lib/supabase";
 export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth();
@@ -20,19 +22,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Provide either jobUrl or jobDescription" }, { status: 400 });
     }
 
-    // 1. Get the job posting text
     const jobText = jobUrl ? await scrapeUrl(jobUrl) : jobDescription;
     if (!jobText || jobText.trim().length < 50) {
       return NextResponse.json({ error: "Could not extract enough job content" }, { status: 422 });
     }
 
-    // Lazy load OpenAI only at runtime
-    const { OpenAI } = await import('openai');
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-
-    // 2. Save the job
     const { data: job, error: jobErr } = await supabaseAdmin
       .from("jobs")
       .insert({
@@ -49,7 +43,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: jobErr?.message ?? "Failed to save job" }, { status: 500 });
     }
 
-    // 3. Chunk + embed the job
     const jobChunks = chunkText(jobText);
     const jobEmbeddings = await Promise.all(jobChunks.map(embedText));
 
@@ -61,10 +54,8 @@ export async function POST(req: NextRequest) {
       }))
     );
 
-    // 4. Embed the resume
     const resumeEmbedding = await embedText(resumeText);
 
-    // 5. RAG retrieval
     const { data: matches, error: matchErr } = await supabaseAdmin.rpc("match_job_chunks_scoped", {
       query_embedding: resumeEmbedding,
       target_job_id: job.id,
@@ -79,7 +70,6 @@ export async function POST(req: NextRequest) {
     const avgSimilarity = topChunks.reduce((sum, m) => sum + m.similarity, 0) / (topChunks.length || 1);
     const fitScore = Math.round(avgSimilarity * 100);
 
-    // 6. Analysis
     const groundedContext = topChunks.map((c) => `- ${c.chunk_text}`).join("\n");
 
     const systemPrompt = `You are a career advisor. Return ONLY valid JSON, no markdown fences:
@@ -92,17 +82,17 @@ export async function POST(req: NextRequest) {
 
     const userPrompt = `MOST RELEVANT JOB REQUIREMENTS (retrieved via similarity search):\n${groundedContext}\n\nRESUME:\n${resumeText}\n\nComputed fit score: ${fitScore}/100.`;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",   // Fixed model
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    });
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    const raw = completion.choices[0].message.content ?? "{}";
+    const result = await model.generateContent([
+      { text: systemPrompt },
+      { text: userPrompt },
+    ]);
+
+    const raw = result.response.text() ?? "{}";
     const cleaned = raw.replace(/```json|```/g, "").trim();
-    
+
     let analysis;
     try {
       analysis = JSON.parse(cleaned);
