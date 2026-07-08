@@ -1,0 +1,32 @@
+{
+  "name": "StandOut",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^6.5.0",
+    "@supabase/supabase-js": "^2.45.4",
+    "@mendable/firecrawl-js": "^1.5.0",
+    "openai": "^4.68.0",
+    "next": "14.2.25",
+    "react": "^18",
+    "react-dom": "^18",
+    "pdf-parse": "^1.1.1",
+    "mammoth": "^1.8.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "tailwindcss": "^3.4.1",
+    "postcss": "^8",
+    "autoprefixer": "^10.0.1"
+  }
+}
