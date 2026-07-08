@@ -7,7 +7,7 @@ export const openai = new OpenAI({
 
 export async function embedText(text: string): Promise<number[]> {
   const res = await openai.embeddings.create({
-    model: "text-embedding-004",
+    model: "gemini-embedding-001",
     input: text.slice(0, 8000),
   });
   return res.data[0].embedding;
