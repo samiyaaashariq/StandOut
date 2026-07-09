@@ -5,14 +5,13 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs"; // required — pdf-parse/mammoth/pdfkit need Node, not Edge
+export const maxDuration = 60; // give the function more time (needs Pro plan for >10s on Hobby)
 
 async function extractText(file: File): Promise<string> {
   const buffer = Buffer.from(await file.arrayBuffer());
   const name = file.name.toLowerCase();
 
   if (name.endsWith(".pdf")) {
-    // Import the lib file directly — avoids pdf-parse's index.js debug code
-    // that tries to read a test PDF and crashes builds/serverless cold starts.
     const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
     const data = await pdfParse(buffer);
     return data.text;
@@ -36,46 +35,50 @@ function buildPdf(resume: {
   skills: string[];
 }): Promise<Buffer> {
   return new Promise(async (resolve, reject) => {
-    const PDFDocument = (await import("pdfkit")).default;
-    const doc = new PDFDocument({ margin: 54, size: "LETTER" });
-    const chunks: Buffer[] = [];
-    doc.on("data", (c) => chunks.push(c));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-    doc.on("error", reject);
+    try {
+      const PDFDocument = (await import("pdfkit")).default;
+      const doc = new PDFDocument({ margin: 54, size: "LETTER" });
+      const chunks: Buffer[] = [];
+      doc.on("data", (c) => chunks.push(c));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", reject);
 
-    doc.font("Helvetica-Bold").fontSize(18).text(resume.name);
-    doc.font("Helvetica").fontSize(10).text(resume.contact);
-    doc.moveDown();
+      doc.font("Helvetica-Bold").fontSize(18).text(resume.name);
+      doc.font("Helvetica").fontSize(10).text(resume.contact);
+      doc.moveDown();
 
-    doc.font("Helvetica-Bold").fontSize(12).text("SUMMARY");
-    doc.font("Helvetica").fontSize(10).text(resume.summary);
-    doc.moveDown();
+      doc.font("Helvetica-Bold").fontSize(12).text("SUMMARY");
+      doc.font("Helvetica").fontSize(10).text(resume.summary);
+      doc.moveDown();
 
-    doc.font("Helvetica-Bold").fontSize(12).text("EXPERIENCE");
-    doc.moveDown(0.3);
-    for (const job of resume.experience) {
-      doc.font("Helvetica-Bold").fontSize(10).text(`${job.title}, ${job.company}`);
-      doc.font("Helvetica").fontSize(9).fillColor("gray").text(job.dates);
-      doc.fillColor("black");
-      for (const bullet of job.bullets) {
-        doc.fontSize(10).text(`• ${bullet}`, { indent: 10 });
-      }
-      doc.moveDown(0.5);
-    }
-
-    doc.font("Helvetica-Bold").fontSize(12).text("EDUCATION");
-    doc.moveDown(0.3);
-    for (const ed of resume.education) {
-      doc.font("Helvetica-Bold").fontSize(10).text(ed.degree);
-      doc.font("Helvetica").fontSize(9).fillColor("gray").text(`${ed.school} — ${ed.dates}`);
-      doc.fillColor("black");
+      doc.font("Helvetica-Bold").fontSize(12).text("EXPERIENCE");
       doc.moveDown(0.3);
+      for (const job of resume.experience ?? []) {
+        doc.font("Helvetica-Bold").fontSize(10).text(`${job.title}, ${job.company}`);
+        doc.font("Helvetica").fontSize(9).fillColor("gray").text(job.dates);
+        doc.fillColor("black");
+        for (const bullet of job.bullets ?? []) {
+          doc.fontSize(10).text(`• ${bullet}`, { indent: 10 });
+        }
+        doc.moveDown(0.5);
+      }
+
+      doc.font("Helvetica-Bold").fontSize(12).text("EDUCATION");
+      doc.moveDown(0.3);
+      for (const ed of resume.education ?? []) {
+        doc.font("Helvetica-Bold").fontSize(10).text(ed.degree);
+        doc.font("Helvetica").fontSize(9).fillColor("gray").text(`${ed.school} — ${ed.dates}`);
+        doc.fillColor("black");
+        doc.moveDown(0.3);
+      }
+
+      doc.font("Helvetica-Bold").fontSize(12).text("SKILLS");
+      doc.font("Helvetica").fontSize(10).text((resume.skills ?? []).join(", "));
+
+      doc.end();
+    } catch (e) {
+      reject(e);
     }
-
-    doc.font("Helvetica-Bold").fontSize(12).text("SKILLS");
-    doc.font("Helvetica").fontSize(10).text(resume.skills.join(", "));
-
-    doc.end();
   });
 }
 
@@ -94,7 +97,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    const resumeText = await extractText(file);
+    let resumeText: string;
+    try {
+      resumeText = await extractText(file);
+    } catch (e: any) {
+      return NextResponse.json(
+        { error: e?.message ?? "Failed to extract text from file" },
+        { status: 422 }
+      );
+    }
+
     if (!resumeText || resumeText.trim().length < 50) {
       return NextResponse.json({ error: "Could not extract enough text from the file" }, { status: 422 });
     }
@@ -115,15 +127,24 @@ Improve weak bullet points into strong, quantified, action-driven statements. Ke
       ? `ORIGINAL RESUME:\n${resumeText}\n\nTARGET JOB DESCRIPTION:\n${jobDescription}\n\nRewrite this resume, tailored to the job above.`
       : `ORIGINAL RESUME:\n${resumeText}\n\nRewrite and upgrade this resume.`;
 
-    const completion = await openai.chat.completions.create({
-      model: "gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    });
+    let completion;
+    try {
+      completion = await openai.chat.completions.create({
+        model: "gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      });
+    } catch (e: any) {
+      console.error("AI completion error:", e);
+      return NextResponse.json(
+        { error: `AI request failed: ${e?.message ?? "unknown error"}` },
+        { status: 502 }
+      );
+    }
 
-    const raw = completion.choices[0].message.content ?? "{}";
+    const raw = completion.choices[0]?.message?.content ?? "{}";
     const cleaned = raw.replace(/```json|```/g, "").trim();
 
     let resume;
@@ -133,21 +154,34 @@ Improve weak bullet points into strong, quantified, action-driven statements. Ke
       return NextResponse.json({ error: "Model did not return valid JSON", raw: cleaned }, { status: 502 });
     }
 
-    const pdfBuffer = await buildPdf(resume);
+    let pdfBuffer: Buffer;
+    try {
+      pdfBuffer = await buildPdf(resume);
+    } catch (e: any) {
+      console.error("PDF build error:", e);
+      return NextResponse.json(
+        { error: `Failed to generate PDF: ${e?.message ?? "unknown error"}` },
+        { status: 500 }
+      );
+    }
 
-    // Save to history
-    const { data: resumeRow } = await supabaseAdmin
-      .from("resumes")
-      .insert({ user_id: userId, raw_text: resumeText })
-      .select()
-      .single();
+    // Save to history (non-fatal if this fails)
+    try {
+      const { data: resumeRow } = await supabaseAdmin
+        .from("resumes")
+        .insert({ user_id: userId, raw_text: resumeText })
+        .select()
+        .single();
 
-    await supabaseAdmin.from("optimizations").insert({
-      user_id: userId,
-      resume_id: resumeRow?.id,
-      ats_score: null,
-      suggestions: resume,
-    });
+      await supabaseAdmin.from("optimizations").insert({
+        user_id: userId,
+        resume_id: resumeRow?.id,
+        ats_score: null,
+        suggestions: resume,
+      });
+    } catch (e) {
+      console.error("Supabase save error (non-fatal):", e);
+    }
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
