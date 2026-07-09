@@ -32,10 +32,8 @@ export default function ResumeUpgrader() {
         } catch {
           try {
             const text = await res.text();
-            if (text) message = text.slice(0, 300); // avoid dumping huge HTML pages
-          } catch {
-            // keep default message
-          }
+            if (text) message = text.slice(0, 300);
+          } catch {}
         }
         throw new Error(message);
       }
@@ -57,7 +55,7 @@ export default function ResumeUpgrader() {
   }
 
   return (
-    <section className="mt-10 flex flex-col gap-4 border-t border-neutral-800 pt-8">
+    <section className="glass-card mt-10 flex flex-col gap-4 p-8">
       <h2 className="font-display text-xl">Upload & upgrade resume</h2>
       <div>
         <label className="mb-1 block font-body text-sm text-neutral-400">
@@ -67,7 +65,7 @@ export default function ResumeUpgrader() {
           type="file"
           accept=".pdf,.docx"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="w-full rounded-lg border border-neutral-800 bg-neutral-900 p-3 font-body text-sm text-neutral-300 file:mr-4 file:rounded-full file:border-0 file:bg-accent file:px-4 file:py-2 file:text-neutral-950"
+          className="w-full rounded-lg border border-neutral-800 bg-neutral-900/60 p-3 font-body text-sm text-neutral-300 file:mr-4 file:rounded-full file:border-0 file:bg-accent file:px-4 file:py-2 file:text-neutral-950"
         />
       </div>
       <textarea
@@ -75,7 +73,7 @@ export default function ResumeUpgrader() {
         onChange={(e) => setJobDescription(e.target.value)}
         rows={5}
         placeholder="(Optional) Paste a target job description to tailor the rewrite..."
-        className="w-full rounded-lg border border-neutral-800 bg-neutral-900 p-3 font-body text-sm focus:border-accent focus:outline-none"
+        className="w-full rounded-lg border border-neutral-800 bg-neutral-900/60 p-3 font-body text-sm focus:border-accent focus:outline-none"
       />
       <button
         onClick={handleSubmit}
