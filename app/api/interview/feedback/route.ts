@@ -7,6 +7,17 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+function friendlyAiError(e: any): { message: string; status: number } {
+  const status = e?.status === 429 ? 429 : e?.status === 503 ? 503 : 502;
+  const message =
+    status === 429
+      ? "We're getting a lot of requests right now. Please wait about 30 seconds and try again."
+      : status === 503
+      ? "The AI service is temporarily busy. Please try again in a moment."
+      : `AI request failed: ${e?.message ?? "unknown error"}`;
+  return { message, status };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth();
@@ -31,15 +42,22 @@ Be specific and reference the actual words the candidate used. Do not give gener
 
     const userPrompt = `QUESTION: ${question}\n\nCANDIDATE'S SPOKEN ANSWER (transcribed, may have minor transcription errors): ${answer}\n\nScore this answer and give feedback.`;
 
-    const completion = await withRetry(() =>
-      openai.chat.completions.create({
-        model: "gemini-3.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-      })
-    );
+    let completion;
+    try {
+      completion = await withRetry(() =>
+        openai.chat.completions.create({
+          model: "gemini-3.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+        })
+      );
+    } catch (e: any) {
+      console.error("AI completion error:", e);
+      const { message, status } = friendlyAiError(e);
+      return NextResponse.json({ error: message }, { status });
+    }
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const cleaned = raw.replace(/```json|```/g, "").trim();
