@@ -1,5 +1,8 @@
 import { ClerkProvider } from "@clerk/nextjs";
+import dynamic from "next/dynamic";
 import "./globals.css";
+
+const Scene3D = dynamic(() => import("@/components/Scene3D"), { ssr: false });
 
 export const metadata = {
   title: "StandOut - Your Personalized Ai Job Hunter",
@@ -11,7 +14,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <ClerkProvider>
       <html lang="en">
         <body className="min-h-screen bg-neutral-950 text-neutral-100 antialiased">
-          {children}
+          <Scene3D />
+          <div className="relative z-0">{children}</div>
         </body>
       </html>
     </ClerkProvider>
