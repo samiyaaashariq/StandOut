@@ -48,7 +48,7 @@ export default function ResumeOptimizer({
 
   return (
     <section className="flex flex-col gap-4">
-      <div>
+      <div className="glass-card p-6">
         <label className="mb-1 block font-body text-sm text-neutral-400">
           Resume text
         </label>
@@ -60,11 +60,11 @@ export default function ResumeOptimizer({
           }}
           rows={10}
           placeholder="Paste your resume text here..."
-          className="w-full rounded-lg border border-neutral-800 bg-neutral-900 p-3 font-body text-sm focus:border-accent focus:outline-none"
+          className="w-full rounded-lg border border-neutral-800 bg-neutral-900/60 p-3 font-body text-sm focus:border-accent focus:outline-none"
         />
       </div>
 
-      <div>
+      <div className="glass-card p-6">
         <label className="mb-1 block font-body text-sm text-neutral-400">
           Target job description (optional, makes feedback specific)
         </label>
@@ -73,7 +73,7 @@ export default function ResumeOptimizer({
           onChange={(e) => setJobDescription(e.target.value)}
           rows={6}
           placeholder="Paste a job description to tailor the review..."
-          className="w-full rounded-lg border border-neutral-800 bg-neutral-900 p-3 font-body text-sm focus:border-accent focus:outline-none"
+          className="w-full rounded-lg border border-neutral-800 bg-neutral-900/60 p-3 font-body text-sm focus:border-accent focus:outline-none"
         />
       </div>
 
@@ -88,9 +88,9 @@ export default function ResumeOptimizer({
       {error && <p className="font-body text-sm text-red-400">{error}</p>}
 
       {result && (
-        <div className="mt-4 flex flex-col gap-6 rounded-lg border border-neutral-800 bg-neutral-900 p-6">
+        <div className="glass-card mt-4 flex flex-col gap-6 p-6">
           <div className="flex items-baseline gap-3">
-            <span className="font-display text-4xl text-accent">{result.ats_score}</span>
+            <span className="glow-text font-display text-4xl text-accent">{result.ats_score}</span>
             <span className="font-body text-sm text-neutral-400">/ 100 ATS score</span>
           </div>
           <p className="font-body text-sm text-neutral-300">{result.summary}</p>
@@ -102,7 +102,7 @@ export default function ResumeOptimizer({
               </h3>
               <div className="flex flex-wrap gap-2">
                 {result.missing_keywords.map((k) => (
-                  <span key={k} className="rounded-full bg-neutral-800 px-3 py-1 font-body text-xs text-neutral-300">
+                  <span key={k} className="rounded-full bg-neutral-800/80 px-3 py-1 font-body text-xs text-neutral-300">
                     {k}
                   </span>
                 ))}
@@ -117,7 +117,7 @@ export default function ResumeOptimizer({
               </h3>
               <div className="flex flex-col gap-4">
                 {result.bullet_rewrites.map((b, i) => (
-                  <div key={i} className="rounded-lg bg-neutral-950 p-4">
+                  <div key={i} className="rounded-lg bg-neutral-950/60 p-4">
                     <p className="mb-1 font-body text-xs text-neutral-500 line-through">{b.original}</p>
                     <p className="mb-1 font-body text-sm text-accent">{b.improved}</p>
                     <p className="font-body text-xs text-neutral-500">{b.why}</p>
