@@ -50,6 +50,7 @@ function buildPdf(resume: {
 }): Promise<Buffer> {
   return new Promise(async (resolve, reject) => {
     try {
+      const path = await import("path");
       const PDFDocument = (await import("pdfkit")).default;
       const doc = new PDFDocument({ margin: 54, size: "LETTER" });
       const chunks: Buffer[] = [];
@@ -57,37 +58,42 @@ function buildPdf(resume: {
       doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
 
-      doc.font("Helvetica-Bold").fontSize(18).text(resume.name);
-      doc.font("Helvetica").fontSize(10).text(resume.contact);
+      // Register embedded TTF fonts instead of relying on pdfkit's standard AFM fonts
+      const fontDir = path.join(process.cwd(), "public", "fonts");
+      doc.registerFont("Body", path.join(fontDir, "Inter-Regular.ttf"));
+      doc.registerFont("Body-Bold", path.join(fontDir, "Inter-Bold.ttf"));
+
+      doc.font("Body-Bold").fontSize(18).text(resume.name);
+      doc.font("Body").fontSize(10).text(resume.contact);
       doc.moveDown();
 
-      doc.font("Helvetica-Bold").fontSize(12).text("SUMMARY");
-      doc.font("Helvetica").fontSize(10).text(resume.summary);
+      doc.font("Body-Bold").fontSize(12).text("SUMMARY");
+      doc.font("Body").fontSize(10).text(resume.summary);
       doc.moveDown();
 
-      doc.font("Helvetica-Bold").fontSize(12).text("EXPERIENCE");
+      doc.font("Body-Bold").fontSize(12).text("EXPERIENCE");
       doc.moveDown(0.3);
       for (const job of resume.experience ?? []) {
-        doc.font("Helvetica-Bold").fontSize(10).text(`${job.title}, ${job.company}`);
-        doc.font("Helvetica").fontSize(9).fillColor("gray").text(job.dates);
+        doc.font("Body-Bold").fontSize(10).text(`${job.title}, ${job.company}`);
+        doc.font("Body").fontSize(9).fillColor("gray").text(job.dates);
         doc.fillColor("black");
         for (const bullet of job.bullets ?? []) {
-          doc.fontSize(10).text(`• ${bullet}`, { indent: 10 });
+          doc.font("Body").fontSize(10).text(`• ${bullet}`, { indent: 10 });
         }
         doc.moveDown(0.5);
       }
 
-      doc.font("Helvetica-Bold").fontSize(12).text("EDUCATION");
+      doc.font("Body-Bold").fontSize(12).text("EDUCATION");
       doc.moveDown(0.3);
       for (const ed of resume.education ?? []) {
-        doc.font("Helvetica-Bold").fontSize(10).text(ed.degree);
-        doc.font("Helvetica").fontSize(9).fillColor("gray").text(`${ed.school} — ${ed.dates}`);
+        doc.font("Body-Bold").fontSize(10).text(ed.degree);
+        doc.font("Body").fontSize(9).fillColor("gray").text(`${ed.school} — ${ed.dates}`);
         doc.fillColor("black");
         doc.moveDown(0.3);
       }
 
-      doc.font("Helvetica-Bold").fontSize(12).text("SKILLS");
-      doc.font("Helvetica").fontSize(10).text((resume.skills ?? []).join(", "));
+      doc.font("Body-Bold").fontSize(12).text("SKILLS");
+      doc.font("Body").fontSize(10).text((resume.skills ?? []).join(", "));
 
       doc.end();
     } catch (e) {
@@ -95,7 +101,6 @@ function buildPdf(resume: {
     }
   });
 }
-
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth();
