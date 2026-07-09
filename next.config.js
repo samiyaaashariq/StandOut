@@ -1,3 +1,10 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+  experimental: {
+    outputFileTracingIncludes: {
+      "/api/resume/upgrade/route": ["./node_modules/pdfkit/js/data/**/*"],
+    },
+  },
+};
+
 module.exports = nextConfig;
