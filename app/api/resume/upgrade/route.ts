@@ -58,7 +58,7 @@ function buildPdf(resume: {
       doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
 
-      const fontDir = path.join(process.cwd(), "public", "fonts");
+      const fontDir = path.join(process.cwd(), "assets", "fonts");
       doc.registerFont("Body", path.join(fontDir, "Inter-Regular.ttf"));
       doc.registerFont("Body-Bold", path.join(fontDir, "Inter-Bold.ttf"));
 
@@ -99,8 +99,8 @@ function buildPdf(resume: {
       reject(e);
     }
   });
-
 }
+
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth();
