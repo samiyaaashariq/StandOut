@@ -52,15 +52,27 @@ function buildPdf(resume: {
     try {
       const path = await import("path");
       const PDFDocument = (await import("pdfkit")).default;
-      const doc = new PDFDocument({ margin: 54, size: "LETTER" });
+
+      const fontDir = path.join(process.cwd(), "assets", "fonts");
+      const regularFontPath = path.join(fontDir, "Inter-Regular.ttf");
+      const boldFontPath = path.join(fontDir, "Inter-Bold.ttf");
+
+      // Set the custom font as default AT CONSTRUCTION TIME.
+      // pdfkit otherwise defaults to "Helvetica" internally and tries to load
+      // its .afm metrics file immediately, before registerFont() ever runs.
+      const doc = new PDFDocument({
+        margin: 54,
+        size: "LETTER",
+        font: regularFontPath,
+      });
+
       const chunks: Buffer[] = [];
       doc.on("data", (c) => chunks.push(c));
       doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
 
-      const fontDir = path.join(process.cwd(), "assets", "fonts");
-      doc.registerFont("Body", path.join(fontDir, "Inter-Regular.ttf"));
-      doc.registerFont("Body-Bold", path.join(fontDir, "Inter-Bold.ttf"));
+      doc.registerFont("Body", regularFontPath);
+      doc.registerFont("Body-Bold", boldFontPath);
 
       doc.font("Body-Bold").fontSize(18).text(resume.name);
       doc.font("Body").fontSize(10).text(resume.contact);
