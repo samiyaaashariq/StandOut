@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { openai } from "@/lib/openai";
 import { supabaseAdmin } from "@/lib/supabase";
+import { withRetry } from "@/lib/withRetry";
 
 export const dynamic = "force-dynamic";
-export const runtime = "nodejs"; // required — pdf-parse/mammoth/pdfkit need Node, not Edge
-export const maxDuration = 60; // give the function more time (needs Pro plan for >10s on Hobby)
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 async function extractText(file: File): Promise<string> {
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -57,9 +58,6 @@ function buildPdf(resume: {
       const regularFontPath = path.join(fontDir, "Inter-Regular.ttf");
       const boldFontPath = path.join(fontDir, "Inter-Bold.ttf");
 
-      // Set the custom font as default AT CONSTRUCTION TIME.
-      // pdfkit otherwise defaults to "Helvetica" internally and tries to load
-      // its .afm metrics file immediately, before registerFont() ever runs.
       const doc = new PDFDocument({
         margin: 54,
         size: "LETTER",
@@ -160,19 +158,25 @@ Improve weak bullet points into strong, quantified, action-driven statements. Ke
 
     let completion;
     try {
-      completion = await openai.chat.completions.create({
-        model: "gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-      });
+      completion = await withRetry(() =>
+        openai.chat.completions.create({
+          model: "gemini-3.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+        })
+      );
     } catch (e: any) {
       console.error("AI completion error:", e);
-      return NextResponse.json(
-        { error: `AI request failed: ${e?.message ?? "unknown error"}` },
-        { status: 502 }
-      );
+      const status = e?.status === 429 ? 429 : e?.status === 503 ? 503 : 502;
+      const message =
+        status === 429
+          ? "We're getting a lot of requests right now. Please wait about 30 seconds and try again."
+          : status === 503
+          ? "The AI service is temporarily busy. Please try again in a moment."
+          : `AI request failed: ${e?.message ?? "unknown error"}`;
+      return NextResponse.json({ error: message }, { status });
     }
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
@@ -196,7 +200,6 @@ Improve weak bullet points into strong, quantified, action-driven statements. Ke
       );
     }
 
-    // Save to history (non-fatal if this fails)
     try {
       const { data: resumeRow } = await supabaseAdmin
         .from("resumes")
