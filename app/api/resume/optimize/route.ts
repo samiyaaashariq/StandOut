@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { openai } from "@/lib/openai";
 import { supabaseAdmin } from "@/lib/supabase";
+import { withRetry } from "@/lib/withRetry";
 
-// POST body: { resumeText: string, jobDescription?: string }
-// If jobDescription is provided, suggestions are tailored to that specific job.
-// If not, suggestions are general ATS + clarity improvements.
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth();
@@ -35,19 +33,25 @@ Be concrete. Reference the actual text of the resume. Do not give generic advice
 
     let completion;
     try {
-      completion = await openai.chat.completions.create({
-        model: "gemini-3.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-      });
+      completion = await withRetry(() =>
+        openai.chat.completions.create({
+          model: "gemini-3.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+        })
+      );
     } catch (e: any) {
       console.error("AI completion error:", e);
-      return NextResponse.json(
-        { error: `AI request failed: ${e?.message ?? "unknown error"}` },
-        { status: 502 }
-      );
+      const status = e?.status === 429 ? 429 : e?.status === 503 ? 503 : 502;
+      const message =
+        status === 429
+          ? "We're getting a lot of requests right now. Please wait about 30 seconds and try again."
+          : status === 503
+          ? "The AI service is temporarily busy. Please try again in a moment."
+          : `AI request failed: ${e?.message ?? "unknown error"}`;
+      return NextResponse.json({ error: message }, { status });
     }
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
@@ -63,7 +67,6 @@ Be concrete. Reference the actual text of the resume. Do not give generic advice
       );
     }
 
-    // Persist resume + optimization so history/dashboard can show it later (non-fatal)
     try {
       const { data: resumeRow } = await supabaseAdmin
         .from("resumes")
