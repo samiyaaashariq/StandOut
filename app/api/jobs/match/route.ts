@@ -3,7 +3,20 @@ import { auth } from "@clerk/nextjs/server";
 import { openai, embedText, chunkText } from "@/lib/openai";
 import { scrapeUrl } from "@/lib/firecrawl";
 import { supabaseAdmin } from "@/lib/supabase";
+import { withRetry } from "@/lib/withRetry";
+
 export const dynamic = 'force-dynamic';
+
+function friendlyAiError(e: any): { message: string; status: number } {
+  const status = e?.status === 429 ? 429 : e?.status === 503 ? 503 : 502;
+  const message =
+    status === 429
+      ? "We're getting a lot of requests right now. Please wait about 30 seconds and try again."
+      : status === 503
+      ? "The AI service is temporarily busy. Please try again in a moment."
+      : `AI request failed: ${e?.message ?? "unknown error"}`;
+  return { message, status };
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,7 +26,6 @@ export async function POST(req: NextRequest) {
     }
 
     const { resumeText, jobUrl, jobDescription, jobTitle, company } = await req.json();
-
     if (!resumeText) {
       return NextResponse.json({ error: "resumeText is required" }, { status: 400 });
     }
@@ -43,7 +55,15 @@ export async function POST(req: NextRequest) {
     }
 
     const jobChunks = chunkText(jobText);
-    const jobEmbeddings = await Promise.all(jobChunks.map(embedText));
+
+    let jobEmbeddings: number[][];
+    try {
+      jobEmbeddings = await withRetry(() => Promise.all(jobChunks.map(embedText)));
+    } catch (e: any) {
+      console.error("Job embedding error:", e);
+      const { message, status } = friendlyAiError(e);
+      return NextResponse.json({ error: message }, { status });
+    }
 
     await supabaseAdmin.from("job_embeddings").insert(
       jobChunks.map((chunk_text, i) => ({
@@ -53,7 +73,14 @@ export async function POST(req: NextRequest) {
       }))
     );
 
-    const resumeEmbedding = await embedText(resumeText);
+    let resumeEmbedding: number[];
+    try {
+      resumeEmbedding = await withRetry(() => embedText(resumeText));
+    } catch (e: any) {
+      console.error("Resume embedding error:", e);
+      const { message, status } = friendlyAiError(e);
+      return NextResponse.json({ error: message }, { status });
+    }
 
     const { data: matches, error: matchErr } = await supabaseAdmin.rpc("match_job_chunks_scoped", {
       query_embedding: resumeEmbedding,
@@ -68,7 +95,6 @@ export async function POST(req: NextRequest) {
     const topChunks: { chunk_text: string; similarity: number }[] = matches ?? [];
     const avgSimilarity = topChunks.reduce((sum, m) => sum + m.similarity, 0) / (topChunks.length || 1);
     const fitScore = Math.round(avgSimilarity * 100);
-
     const groundedContext = topChunks.map((c) => `- ${c.chunk_text}`).join("\n");
 
     const systemPrompt = `You are a career advisor. Return ONLY valid JSON, no markdown fences:
@@ -81,15 +107,24 @@ export async function POST(req: NextRequest) {
 
     const userPrompt = `MOST RELEVANT JOB REQUIREMENTS (retrieved via similarity search):\n${groundedContext}\n\nRESUME:\n${resumeText}\n\nComputed fit score: ${fitScore}/100.`;
 
-    const completion = await openai.chat.completions.create({
-      model: "gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    });
+    let completion;
+    try {
+      completion = await withRetry(() =>
+        openai.chat.completions.create({
+          model: "gemini-3.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+        })
+      );
+    } catch (e: any) {
+      console.error("AI completion error:", e);
+      const { message, status } = friendlyAiError(e);
+      return NextResponse.json({ error: message }, { status });
+    }
 
-    const raw = completion.choices[0].message.content ?? "{}";
+    const raw = completion.choices[0]?.message?.content ?? "{}";
     const cleaned = raw.replace(/```json|```/g, "").trim();
 
     let analysis;
@@ -104,7 +139,6 @@ export async function POST(req: NextRequest) {
       fit_score: fitScore,
       ...analysis,
     });
-
   } catch (err: any) {
     console.error("jobs/match error:", err);
     return NextResponse.json({ error: err?.message ?? "Unknown server error" }, { status: 500 });
