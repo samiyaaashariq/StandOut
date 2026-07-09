@@ -2,7 +2,10 @@
 const nextConfig = {
   experimental: {
     outputFileTracingIncludes: {
-      "/api/resume/upgrade/route": ["./node_modules/pdfkit/js/data/**/*"],
+      "/api/resume/upgrade/route": [
+        "./node_modules/pdfkit/js/data/**/*",
+        "./assets/fonts/**/*",
+      ],
     },
   },
 };
