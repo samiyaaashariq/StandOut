@@ -25,11 +25,17 @@ export default function ResumeUpgrader() {
         body: formData,
       });
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Request failed");
-      }
-
+     if (!res.ok) {
+  let message = "Request failed";
+  try {
+    const err = await res.json();
+    message = err.error ?? message;
+  } catch {
+    const text = await res.text();
+    message = text || message;
+  }
+  throw new Error(message);
+}
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
