@@ -138,6 +138,11 @@ export default function ResumeOptimizer({
             </div>
           )}
         </div>
+      {analysisComplete && (
+  <button onClick={() => setShowUpgrader(true)}>
+    Upgrade this resume based on the analysis →
+  </button>
+)}
       )}
     </section>
   );
