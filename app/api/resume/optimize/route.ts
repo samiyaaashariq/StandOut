@@ -33,16 +33,26 @@ Be concrete. Reference the actual text of the resume. Do not give generic advice
       ? `RESUME:\n${resumeText}\n\nTARGET JOB DESCRIPTION:\n${jobDescription}\n\nScore and improve this resume specifically against this job.`
       : `RESUME:\n${resumeText}\n\nNo specific job provided — give general ATS and clarity feedback.`;
 
-    const completion = await openai.chat.completions.create({
-      model: "gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    });
+    let completion;
+    try {
+      completion = await openai.chat.completions.create({
+        model: "gemini-3.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      });
+    } catch (e: any) {
+      console.error("AI completion error:", e);
+      return NextResponse.json(
+        { error: `AI request failed: ${e?.message ?? "unknown error"}` },
+        { status: 502 }
+      );
+    }
 
-    const raw = completion.choices[0].message.content ?? "{}";
+    const raw = completion.choices[0]?.message?.content ?? "{}";
     const cleaned = raw.replace(/```json|```/g, "").trim();
+
     let result;
     try {
       result = JSON.parse(cleaned);
@@ -53,19 +63,23 @@ Be concrete. Reference the actual text of the resume. Do not give generic advice
       );
     }
 
-    // Persist resume + optimization so history/dashboard can show it later
-    const { data: resumeRow } = await supabaseAdmin
-      .from("resumes")
-      .insert({ user_id: userId, raw_text: resumeText })
-      .select()
-      .single();
+    // Persist resume + optimization so history/dashboard can show it later (non-fatal)
+    try {
+      const { data: resumeRow } = await supabaseAdmin
+        .from("resumes")
+        .insert({ user_id: userId, raw_text: resumeText })
+        .select()
+        .single();
 
-    await supabaseAdmin.from("optimizations").insert({
-      user_id: userId,
-      resume_id: resumeRow?.id,
-      ats_score: result.ats_score,
-      suggestions: result,
-    });
+      await supabaseAdmin.from("optimizations").insert({
+        user_id: userId,
+        resume_id: resumeRow?.id,
+        ats_score: result.ats_score,
+        suggestions: result,
+      });
+    } catch (e) {
+      console.error("Supabase save error (non-fatal):", e);
+    }
 
     return NextResponse.json(result);
   } catch (err: any) {
