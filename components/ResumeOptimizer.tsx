@@ -12,8 +12,10 @@ type Result = {
 
 export default function ResumeOptimizer({
   onResumeTextChange,
+  onUpgradeRequested,
 }: {
   onResumeTextChange?: (text: string) => void;
+  onUpgradeRequested?: (resumeText: string, jobDescription: string) => void;
 }) {
   const [resumeText, setResumeText] = useState("");
   const [jobDescription, setJobDescription] = useState("");
@@ -137,12 +139,14 @@ export default function ResumeOptimizer({
               </ul>
             </div>
           )}
+
+          <button
+            onClick={() => onUpgradeRequested?.(resumeText, jobDescription)}
+            className="self-start rounded-full border border-accent px-6 py-2.5 font-body text-sm font-medium text-accent transition hover:bg-accent hover:text-neutral-950"
+          >
+            Upgrade this resume based on the analysis →
+          </button>
         </div>
-      {analysisComplete && (
-  <button onClick={() => setShowUpgrader(true)}>
-    Upgrade this resume based on the analysis →
-  </button>
-)}
       )}
     </section>
   );
