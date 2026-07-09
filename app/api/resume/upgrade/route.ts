@@ -12,15 +12,29 @@ async function extractText(file: File): Promise<string> {
   const name = file.name.toLowerCase();
 
   if (name.endsWith(".pdf")) {
-    const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
-    const data = await pdfParse(buffer);
-    return data.text;
+    try {
+      const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
+      const data = await pdfParse(buffer);
+      return data.text;
+    } catch (e: any) {
+      console.error("PDF parse error:", e);
+      throw new Error(
+        `Could not read this PDF (${e?.message ?? "corrupt or unsupported PDF structure"}). Try re-exporting the PDF (e.g. from Word/Google Docs → "Save as PDF" or "Print to PDF") and upload again, or upload a .docx instead.`
+      );
+    }
   }
 
   if (name.endsWith(".docx")) {
-    const mammoth = await import("mammoth");
-    const result = await mammoth.extractRawText({ buffer });
-    return result.value;
+    try {
+      const mammoth = await import("mammoth");
+      const result = await mammoth.extractRawText({ buffer });
+      return result.value;
+    } catch (e: any) {
+      console.error("DOCX parse error:", e);
+      throw new Error(
+        `Could not read this DOCX file (${e?.message ?? "corrupt or unsupported structure"}). Try re-saving it and uploading again.`
+      );
+    }
   }
 
   throw new Error("Unsupported file type. Please upload a .pdf or .docx file.");
