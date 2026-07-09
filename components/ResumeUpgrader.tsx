@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 
 export default function ResumeUpgrader() {
@@ -25,17 +24,22 @@ export default function ResumeUpgrader() {
         body: formData,
       });
 
-     if (!res.ok) {
-  let message = "Request failed";
-  try {
-    const err = await res.json();
-    message = err.error ?? message;
-  } catch {
-    const text = await res.text();
-    message = text || message;
-  }
-  throw new Error(message);
-}
+      if (!res.ok) {
+        let message = `Request failed (status ${res.status})`;
+        try {
+          const err = await res.json();
+          message = err.error ?? message;
+        } catch {
+          try {
+            const text = await res.text();
+            if (text) message = text.slice(0, 300); // avoid dumping huge HTML pages
+          } catch {
+            // keep default message
+          }
+        }
+        throw new Error(message);
+      }
+
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -55,9 +59,10 @@ export default function ResumeUpgrader() {
   return (
     <section className="mt-10 flex flex-col gap-4 border-t border-neutral-800 pt-8">
       <h2 className="font-display text-xl">Upload & upgrade resume</h2>
-
       <div>
-        <label className="mb-1 block font-body text-sm text-neutral-400">Resume file (.pdf or .docx)</label>
+        <label className="mb-1 block font-body text-sm text-neutral-400">
+          Resume file (.pdf or .docx)
+        </label>
         <input
           type="file"
           accept=".pdf,.docx"
@@ -65,7 +70,6 @@ export default function ResumeUpgrader() {
           className="w-full rounded-lg border border-neutral-800 bg-neutral-900 p-3 font-body text-sm text-neutral-300 file:mr-4 file:rounded-full file:border-0 file:bg-accent file:px-4 file:py-2 file:text-neutral-950"
         />
       </div>
-
       <textarea
         value={jobDescription}
         onChange={(e) => setJobDescription(e.target.value)}
@@ -73,7 +77,6 @@ export default function ResumeUpgrader() {
         placeholder="(Optional) Paste a target job description to tailor the rewrite..."
         className="w-full rounded-lg border border-neutral-800 bg-neutral-900 p-3 font-body text-sm focus:border-accent focus:outline-none"
       />
-
       <button
         onClick={handleSubmit}
         disabled={loading}
@@ -81,7 +84,6 @@ export default function ResumeUpgrader() {
       >
         {loading ? "Upgrading..." : "Upgrade & download PDF"}
       </button>
-
       {error && <p className="font-body text-sm text-red-400">{error}</p>}
     </section>
   );
