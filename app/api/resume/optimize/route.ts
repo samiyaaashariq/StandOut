@@ -4,10 +4,10 @@ import { openai } from "@/lib/openai";
 import { supabaseAdmin } from "@/lib/supabase";
 import { withRetry } from "@/lib/withRetry";
 
-
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth();
@@ -25,11 +25,11 @@ Return ONLY valid JSON, no markdown fences, matching this shape:
 {
   "ats_score": number (0-100),
   "summary": string (2-3 sentences, direct and specific),
-  "missing_keywords": string[],
-  "bullet_rewrites": [{ "original": string, "improved": string, "why": string }],
-  "structural_issues": string[]
+  "missing_keywords": string[] (max 8 items, most important only),
+  "bullet_rewrites": [{ "original": string, "improved": string, "why": string }] (max 4 items, pick the weakest ones only),
+  "structural_issues": string[] (max 4 items, most important only)
 }
-Be concrete. Reference the actual text of the resume. Do not give generic advice.`;
+Be concrete. Reference the actual text of the resume. Do not give generic advice. Keep responses focused and avoid unnecessary elaboration.`;
 
     const userPrompt = jobDescription
       ? `RESUME:\n${resumeText}\n\nTARGET JOB DESCRIPTION:\n${jobDescription}\n\nScore and improve this resume specifically against this job.`
