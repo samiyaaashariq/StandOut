@@ -16,7 +16,7 @@ export default function LandingPage() {
 
         <p className="max-w-xl font-body text-lg text-neutral-400">
           Optimize your resume, match it against real job descriptions, upgrade
-          it with AI, and practice interviews out loud — all in one place.
+          it with AI, and practice interviews out loud - all in one place.
         </p>
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
