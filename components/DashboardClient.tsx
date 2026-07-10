@@ -49,11 +49,13 @@ export default function DashboardClient() {
       </div>
 
       {/* Tab content */}
-      {activeTab === "optimize" && (
-        <ResumeOptimizer
-          onResumeTextChange={setResumeText}
-          onUpgradeRequested={handleUpgradeRequested}
-        />
+     {activeTab === "upgrade" && (
+        <div ref={upgraderRef}>
+          <ResumeUpgrader
+            initialResumeText={resumeText}
+            initialJobDescription={jobDescription}
+          />
+        </div>
       )}
 
       {activeTab === "match" && <JobMatcher resumeText={resumeText} />}
