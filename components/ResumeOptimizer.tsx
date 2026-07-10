@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type Result = {
   ats_score: number;
@@ -9,6 +9,14 @@ type Result = {
   bullet_rewrites: { original: string; improved: string; why: string }[];
   structural_issues: string[];
 };
+
+const LOADING_STEPS = [
+  "Reading your resume...",
+  "Scoring against ATS criteria...",
+  "Comparing against job requirements...",
+  "Rewriting weak bullet points...",
+  "Finalizing suggestions...",
+];
 
 export default function ResumeOptimizer({
   onResumeTextChange,
@@ -20,8 +28,20 @@ export default function ResumeOptimizer({
   const [resumeText, setResumeText] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!loading) {
+      setLoadingStep(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setLoadingStep((prev) => (prev + 1 < LOADING_STEPS.length ? prev + 1 : prev));
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [loading]);
 
   async function handleSubmit() {
     if (!resumeText.trim()) {
@@ -84,6 +104,13 @@ export default function ResumeOptimizer({
       >
         {loading ? "Analyzing..." : "Analyze resume"}
       </button>
+
+      {loading && (
+        <div className="glass-card animate-card-enter flex flex-col items-center justify-center gap-4 p-12">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-neutral-700 border-t-accent" />
+          <p className="font-body text-sm text-neutral-400">{LOADING_STEPS[loadingStep]}</p>
+        </div>
+      )}
 
       {error && <p className="font-body text-sm text-red-400">{error}</p>}
 
