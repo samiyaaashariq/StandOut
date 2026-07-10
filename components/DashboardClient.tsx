@@ -49,20 +49,21 @@ export default function DashboardClient() {
       </div>
 
       {/* Tab content */}
-     {activeTab === "upgrade" && (
-        <div ref={upgraderRef}>
-          <ResumeUpgrader
-            initialResumeText={resumeText}
-            initialJobDescription={jobDescription}
-          />
-        </div>
+      {activeTab === "optimize" && (
+        <ResumeOptimizer
+          onResumeTextChange={setResumeText}
+          onUpgradeRequested={handleUpgradeRequested}
+        />
       )}
 
       {activeTab === "match" && <JobMatcher resumeText={resumeText} />}
 
       {activeTab === "upgrade" && (
         <div ref={upgraderRef}>
-          <ResumeUpgrader />
+          <ResumeUpgrader
+            initialResumeText={resumeText}
+            initialJobDescription={jobDescription}
+          />
         </div>
       )}
 
