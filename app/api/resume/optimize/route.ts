@@ -3,6 +3,8 @@ import { auth } from "@clerk/nextjs/server";
 import { openai } from "@/lib/openai";
 import { supabaseAdmin } from "@/lib/supabase";
 import { withRetry } from "@/lib/withRetry";
+
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
