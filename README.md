@@ -1,5 +1,5 @@
 StandOut ✨
-~Your personal AI job-hunting assistant.
+~Your personal AI job-hunting assistant that actually makes you outshine other applicants.
 
 StandOut helps you polish your resume, see how well it matches a job, upgrade it with AI, and even practice interviews out loud — all in one place.
 
