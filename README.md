@@ -1,65 +1,71 @@
-# AI Job Hunter
+StandOut ✨
 
-Resume optimization, job matching, cover letters, LinkedIn/portfolio review, and
-interview prep — grounded in your actual resume and target job description via RAG.
+Your personal AI job-hunting assistant.
 
-## Stack
-Next.js 14 (App Router) · Clerk (auth) · Supabase + pgvector (DB + embeddings) ·
-OpenAI (gpt-4o + text-embedding-3-small) · Firecrawl (scraping)
+StandOut helps you polish your resume, see how well it matches a job, upgrade it with AI, and even practice interviews out loud — all in one place.
 
-## Setup (do this first, ~15 min)
 
-1. **Install deps**
-   ```
-   npm install
-   ```
+What it does
 
-2. **Clerk** — create an app at https://dashboard.clerk.com, copy the publishable +
-   secret keys into `.env.local`.
+📝 Resume Optimizer
 
-3. **Supabase** — create a project at https://supabase.com/dashboard, then:
-   - Go to SQL Editor → paste the contents of `supabase/schema.sql` → Run
-   - Copy Project URL + anon key + service role key into `.env.local`
+Paste your resume text (and a job description if you have one) and get:
 
-4. **OpenAI** — copy an API key from https://platform.openai.com/api-keys into `.env.local`
 
-5. **Firecrawl** — copy an API key from https://firecrawl.dev into `.env.local`
-   (needed starting Day 5, not required to run Day 1-2)
+An ATS score out of 100
+A list of missing keywords
+AI-rewritten bullet points that sound stronger
+Feedback on structural issues
 
-6. Copy the example env file and fill it in:
-   ```
-   cp .env.local.example .env.local
-   ```
 
-7. Run it:
-   ```
-   npm run dev
-   ```
-   Visit http://localhost:3000, sign in, go to `/dashboard`, paste a resume, hit
-   Analyze.
+🎯 Job Matching
 
-## Build plan (this week)
+Paste a job description or link, and StandOut compares it against your resume to show:
 
-- [x] **Day 1-2 — Foundation + Feature 1: Resume Optimizer**
-      Auth, DB schema, `/api/resume/optimize`, working UI.
-- [x] **Day 3-4 — Feature 2: Job Matching**
-      Firecrawl pulls/parses a JD (or paste it directly) → embed JD + resume →
-      `match_job_chunks_scoped` RAG query → ranked fit score + gap list.
-      *(scaffolded — you're here. Re-run `supabase/schema.sql` if you already ran it
-      before this update — it adds the `match_job_chunks_scoped` function.)*
-- [ ] **Day 5-6 — Feature 3: Auto-generated Cover Letters**
-      Reuses resume + JD context from matching → generates an editable draft.
-- [ ] **Day 7 — Feature 4: LinkedIn Profile Review**
-      Firecrawl scrapes public profile → same critique pipeline as the resume optimizer.
-- [ ] **Day 8 — Feature 5: Portfolio Feedback**
-      Accepts a portfolio/GitHub URL → Firecrawl scrape → OpenAI critique.
-- [ ] **Day 9-10 — Feature 6: Interview Prep**
-      Generates likely questions from JD + resume gaps, mock Q&A loop.
-- [ ] **Day 11-14 — Polish**
-      Unified dashboard nav, history views, deploy to Vercel, record a demo, write
-      the "why I built this" section below for your resume/portfolio.
 
-## Why this project (fill in once built, use it in interviews)
+How well you match the role
+What you're already strong in
+What gaps you should address
 
-_A sentence or two on the problem, the RAG design decision, and one hard bug you
-hit and fixed — this is what makes it a talking point, not just a repo._
+
+🚀 Resume Upgrade
+
+Upload your resume (or reuse the one you just analyzed) and get back a fully rewritten, polished PDF — tailored to a specific job if you'd like.
+
+🎙️ Interview Prep
+
+The most fun part. StandOut generates real interview questions based on your resume and target job, reads them out loud, and lets you answer by speaking — just like a real interview. You get instant, scored feedback after each answer.
+
+
+How to use it
+
+
+Open the app and land on the dashboard.
+Pick a tab — Resume Optimizer, Job Matching, Resume Upgrade, or Interview Prep.
+Paste or upload your resume, and a job description if you have one.
+Click the action button (Analyze / Match / Upgrade / Start Interview).
+Read your results — scores, suggestions, or a downloaded PDF.
+Found something to improve? Jump between tabs anytime — your resume text carries over automatically.
+
+
+That's it. No complicated setup, no long forms — just paste, click, and see what comes back.
+
+
+Built with
+
+
+Next.js — the app framework
+Gemini API — powers all the AI analysis, rewriting, and interview feedback
+Supabase — stores your resumes and past sessions
+Clerk — handles sign-in
+React Three Fiber — the ambient 3D background
+Web Speech API — voice input and text-to-speech for the interview practice
+
+
+
+A quick note
+
+This is a personal project built to explore AI-powered career tools — resume scoring, semantic job matching, and voice-based interview practice. It's running on a free-tier AI plan, so if you use it a lot in a short time, you might see a "please wait a moment" message. Just give it a few seconds and try again — normal, everyday use works smoothly.
+
+
+Made with a lot of trial, error, and stubbornness. 🚀
