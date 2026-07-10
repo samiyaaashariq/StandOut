@@ -1,11 +1,10 @@
 StandOut ✨
-
-Your personal AI job-hunting assistant.
+~Your personal AI job-hunting assistant.
 
 StandOut helps you polish your resume, see how well it matches a job, upgrade it with AI, and even practice interviews out loud — all in one place.
 
 
-What it does
+----WHAT IT DOES----
 
 📝 Resume Optimizer
 
@@ -37,7 +36,7 @@ Upload your resume (or reuse the one you just analyzed) and get back a fully rew
 The most fun part. StandOut generates real interview questions based on your resume and target job, reads them out loud, and lets you answer by speaking — just like a real interview. You get instant, scored feedback after each answer.
 
 
-How to use it
+-----HOW TO USE IT----
 
 
 Open the app and land on the dashboard.
@@ -51,7 +50,7 @@ Found something to improve? Jump between tabs anytime — your resume text carri
 That's it. No complicated setup, no long forms — just paste, click, and see what comes back.
 
 
-Built with
+----BUILT WITH----
 
 
 Next.js — the app framework
@@ -63,8 +62,7 @@ Web Speech API — voice input and text-to-speech for the interview practice
 
 
 
-A quick note
-
+A QUICK NOTE-
 This is a personal project built to explore AI-powered career tools — resume scoring, semantic job matching, and voice-based interview practice. It's running on a free-tier AI plan, so if you use it a lot in a short time, you might see a "please wait a moment" message. Just give it a few seconds and try again — normal, everyday use works smoothly.
 
 
