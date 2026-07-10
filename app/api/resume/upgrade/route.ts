@@ -118,22 +118,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const formData = await req.formData();
-    const file = formData.get("file") as File | null;
-    const jobDescription = (formData.get("jobDescription") as string) || "";
-
-    if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
-    }
-
+const contentType = req.headers.get("content-type") || "";
     let resumeText: string;
-    try {
-      resumeText = await extractText(file);
-    } catch (e: any) {
-      return NextResponse.json(
-        { error: e?.message ?? "Failed to extract text from file" },
-        { status: 422 }
-      );
+    let jobDescription = "";
+
+    if (contentType.includes("application/json")) {
+      // Text came from the Optimizer, already have it, no file to parse
+      const body = await req.json();
+      if (!body.resumeText || typeof body.resumeText !== "string") {
+        return NextResponse.json({ error: "resumeText is required" }, { status: 400 });
+      }
+      resumeText = body.resumeText;
+      jobDescription = body.jobDescription || "";
+    } else {
+      // File upload path (existing behavior)
+      const formData = await req.formData();
+      const file = formData.get("file") as File | null;
+      jobDescription = (formData.get("jobDescription") as string) || "";
+
+      if (!file) {
+        return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+      }
+
+      try {
+        resumeText = await extractText(file);
+      } catch (e: any) {
+        return NextResponse.json(
+          { error: e?.message ?? "Failed to extract text from file" },
+          { status: 422 }
+        );
+      }
     }
 
     if (!resumeText || resumeText.trim().length < 50) {
