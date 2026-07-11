@@ -5,8 +5,9 @@ import JobMatcher from "./JobMatcher";
 import ResumeUpgrader from "./ResumeUpgrader";
 import InterviewPrep from "./InterviewPrep";
 import CoverLetterGenerator from "./CoverLetterGenerator";
+import ApplicationTracker from "./ApplicationTracker";
 
-type Tab = "optimize" | "match" | "upgrade" | "interview" | "cover-letter";
+type Tab = "optimize" | "match" | "upgrade" | "interview" | "cover-letter" | "tracker";
 
 export default function DashboardClient() {
   const [resumeText, setResumeText] = useState("");
@@ -29,6 +30,7 @@ export default function DashboardClient() {
     { id: "upgrade", label: "Resume Upgrade" },
     { id: "cover-letter", label: "Cover Letter" },
     { id: "interview", label: "Interview Prep" },
+    { id: "tracker", label: "Applications" },
   ];
 
   return (
@@ -80,6 +82,7 @@ export default function DashboardClient() {
           initialJobDescription={jobDescription}
         />
       )}
+      {activeTab === "tracker" && <ApplicationTracker />}
     </div>
   );
 }
