@@ -41,76 +41,6 @@ async function extractText(file: File): Promise<string> {
   throw new Error("Unsupported file type. Please upload a .pdf or .docx file.");
 }
 
-function buildPdf(resume: {
-  name: string;
-  contact: string;
-  summary: string;
-  experience: { title: string; company: string; dates: string; bullets: string[] }[];
-  education: { degree: string; school: string; dates: string }[];
-  skills: string[];
-}): Promise<Buffer> {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const path = await import("path");
-      const PDFDocument = (await import("pdfkit")).default;
-
-      const fontDir = path.join(process.cwd(), "assets", "fonts");
-      const regularFontPath = path.join(fontDir, "Inter-Regular.ttf");
-      const boldFontPath = path.join(fontDir, "Inter-Bold.ttf");
-
-      const doc = new PDFDocument({
-        margin: 54,
-        size: "LETTER",
-        font: regularFontPath,
-      });
-
-      const chunks: Buffer[] = [];
-      doc.on("data", (c) => chunks.push(c));
-      doc.on("end", () => resolve(Buffer.concat(chunks)));
-      doc.on("error", reject);
-
-      doc.registerFont("Body", regularFontPath);
-      doc.registerFont("Body-Bold", boldFontPath);
-
-      doc.font("Body-Bold").fontSize(18).text(resume.name);
-      doc.font("Body").fontSize(10).text(resume.contact);
-      doc.moveDown();
-
-      doc.font("Body-Bold").fontSize(12).text("SUMMARY");
-      doc.font("Body").fontSize(10).text(resume.summary);
-      doc.moveDown();
-
-      doc.font("Body-Bold").fontSize(12).text("EXPERIENCE");
-      doc.moveDown(0.3);
-      for (const job of resume.experience ?? []) {
-        doc.font("Body-Bold").fontSize(10).text(`${job.title}, ${job.company}`);
-        doc.font("Body").fontSize(9).fillColor("gray").text(job.dates);
-        doc.fillColor("black");
-        for (const bullet of job.bullets ?? []) {
-          doc.font("Body").fontSize(10).text(`• ${bullet}`, { indent: 10 });
-        }
-        doc.moveDown(0.5);
-      }
-
-      doc.font("Body-Bold").fontSize(12).text("EDUCATION");
-      doc.moveDown(0.3);
-      for (const ed of resume.education ?? []) {
-        doc.font("Body-Bold").fontSize(10).text(ed.degree);
-        doc.font("Body").fontSize(9).fillColor("gray").text(`${ed.school} — ${ed.dates}`);
-        doc.fillColor("black");
-        doc.moveDown(0.3);
-      }
-
-      doc.font("Body-Bold").fontSize(12).text("SKILLS");
-      doc.font("Body").fontSize(10).text((resume.skills ?? []).join(", "));
-
-      doc.end();
-    } catch (e) {
-      reject(e);
-    }
-  });
-}
-
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth();
@@ -118,12 +48,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-const contentType = req.headers.get("content-type") || "";
+    const contentType = req.headers.get("content-type") || "";
     let resumeText: string;
     let jobDescription = "";
 
     if (contentType.includes("application/json")) {
-      // Text came from the Optimizer, already have it, no file to parse
       const body = await req.json();
       if (!body.resumeText || typeof body.resumeText !== "string") {
         return NextResponse.json({ error: "resumeText is required" }, { status: 400 });
@@ -131,7 +60,6 @@ const contentType = req.headers.get("content-type") || "";
       resumeText = body.resumeText;
       jobDescription = body.jobDescription || "";
     } else {
-      // File upload path (existing behavior)
       const formData = await req.formData();
       const file = formData.get("file") as File | null;
       jobDescription = (formData.get("jobDescription") as string) || "";
@@ -203,17 +131,7 @@ Improve weak bullet points into strong, quantified, action-driven statements. Ke
       return NextResponse.json({ error: "Model did not return valid JSON", raw: cleaned }, { status: 502 });
     }
 
-    let pdfBuffer: Buffer;
-    try {
-      pdfBuffer = await buildPdf(resume);
-    } catch (e: any) {
-      console.error("PDF build error:", e);
-      return NextResponse.json(
-        { error: `Failed to generate PDF: ${e?.message ?? "unknown error"}` },
-        { status: 500 }
-      );
-    }
-
+    // Save to history (non-fatal if this fails)
     try {
       const { data: resumeRow } = await supabaseAdmin
         .from("resumes")
@@ -231,13 +149,8 @@ Improve weak bullet points into strong, quantified, action-driven statements. Ke
       console.error("Supabase save error (non-fatal):", e);
     }
 
-    return new NextResponse(new Uint8Array(pdfBuffer), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": 'attachment; filename="upgraded-resume.pdf"',
-      },
-    });
+    // Return the structured resume as JSON — no PDF, no font/bundling issues
+    return NextResponse.json({ resume });
   } catch (err: any) {
     console.error("resume/upgrade error:", err);
     return NextResponse.json({ error: err?.message ?? "Unknown server error" }, { status: 500 });
