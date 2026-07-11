@@ -6,14 +6,18 @@ StandOut helps you polish your resume, see how well it matches a job, upgrade it
 
 ---
 
-## Screenshots
+## SneakPeak
 
-<!-- Drag and drop your images here when editing this file on GitHub.com,
-     or replace the paths below with your own screenshot files. -->
+LANDING PAGE
+<img width="821" height="434" alt="standout landing page final" src="https://github.com/user-attachments/assets/14540dae-41f3-44d1-b26f-192e8662d1bd" />
 
-![Landing page](./assets/screenshots/landing.png)
-![Resume Optimizer](./assets/screenshots/optimizer.png)
-![Interview Prep](./assets/screenshots/interview.png)
+
+SIX FEATURES OVERVIEW
+<img width="804" height="434" alt="standout 1" src="https://github.com/user-attachments/assets/1b30a22c-f903-4e3a-9a45-675730f4b6ca" />
+
+INTERVIEW PREPARATION
+<img width="781" height="441" alt="standout interview" src="https://github.com/user-attachments/assets/91371873-3797-4c83-9ea2-7f678b9e3344" />
+
 
 ---
 
