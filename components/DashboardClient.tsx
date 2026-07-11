@@ -4,8 +4,9 @@ import ResumeOptimizer from "./ResumeOptimizer";
 import JobMatcher from "./JobMatcher";
 import ResumeUpgrader from "./ResumeUpgrader";
 import InterviewPrep from "./InterviewPrep";
+import CoverLetterGenerator from "./CoverLetterGenerator";
 
-type Tab = "optimize" | "match" | "upgrade" | "interview";
+type Tab = "optimize" | "match" | "upgrade" | "interview" | "cover-letter";
 
 export default function DashboardClient() {
   const [resumeText, setResumeText] = useState("");
@@ -26,13 +27,13 @@ export default function DashboardClient() {
     { id: "optimize", label: "Resume Optimizer" },
     { id: "match", label: "Job Matching" },
     { id: "upgrade", label: "Resume Upgrade" },
+    { id: "cover-letter", label: "Cover Letter" },
     { id: "interview", label: "Interview Prep" },
   ];
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-10">
-      {/* Tab navigation */}
-      <div className="glass-card flex gap-1 p-1.5">
+      <div className="glass-card flex flex-wrap gap-1 p-1.5">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -48,7 +49,6 @@ export default function DashboardClient() {
         ))}
       </div>
 
-      {/* Tab content */}
       {activeTab === "optimize" && (
         <ResumeOptimizer
           onResumeTextChange={setResumeText}
@@ -65,6 +65,13 @@ export default function DashboardClient() {
             initialJobDescription={jobDescription}
           />
         </div>
+      )}
+
+      {activeTab === "cover-letter" && (
+        <CoverLetterGenerator
+          initialResumeText={resumeText}
+          initialJobDescription={jobDescription}
+        />
       )}
 
       {activeTab === "interview" && (
