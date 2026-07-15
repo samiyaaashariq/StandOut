@@ -62,8 +62,13 @@ export default function InterviewPrep({
       setError(null);
     };
 
+    // TEMP DEBUG — remove once mic issue is confirmed fixed
+    recognition.onaudiostart = () => console.log("✅ audio capture started");
+    recognition.onspeechstart = () => console.log("✅ speech detected");
+
     recognition.onerror = (event: any) => {
       setIsRecording(false);
+      console.log("❌ recognition error:", event.error); // TEMP DEBUG
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {
         setError("Microphone access is blocked. Allow mic permissions for this site and try again.");
       } else if (event.error !== "no-speech" && event.error !== "aborted") {
@@ -78,6 +83,8 @@ export default function InterviewPrep({
     return () => {
       recognition.onresult = null;
       recognition.onstart = null;
+      recognition.onaudiostart = null;
+      recognition.onspeechstart = null;
       recognition.onerror = null;
       recognition.onend = null;
       try {
@@ -125,8 +132,7 @@ export default function InterviewPrep({
 
   async function toggleRecording() {
     if (!recognitionRef.current) return;
-recognition.onaudiostart = () => console.log("✅ audio capture started");
-recognition.onspeechstart = () => console.log("✅ speech detected");
+
     if (isRecording) {
       try {
         recognitionRef.current.stop();
@@ -138,10 +144,13 @@ recognition.onspeechstart = () => console.log("✅ speech detected");
 
     setError(null);
 
-    // Explicitly request mic permission first. Some browsers won't reliably
-    // prompt for it just from calling SpeechRecognition.start().
+    // Just probe mic permission, then immediately release the stream.
+    // SpeechRecognition does its own internal audio capture — holding
+    // onto a separate getUserMedia stream can block it from ever
+    // actually receiving audio, even though onstart still fires.
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
     } catch {
       setError("Microphone access was denied. Allow mic permissions in your browser and try again.");
       return;
