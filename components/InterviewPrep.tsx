@@ -56,10 +56,36 @@ export default function InterviewPrep({
       setTranscript(finalTranscript);
     };
 
-    recognition.onerror = () => setIsRecording(false);
+    // Let the recognition engine drive recording state, not our own guess
+    recognition.onstart = () => {
+      setIsRecording(true);
+      setError(null);
+    };
+
+    recognition.onerror = (event: any) => {
+      setIsRecording(false);
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        setError("Microphone access is blocked. Allow mic permissions for this site and try again.");
+      } else if (event.error !== "no-speech" && event.error !== "aborted") {
+        setError(`Speech recognition error: ${event.error}`);
+      }
+    };
+
     recognition.onend = () => setIsRecording(false);
 
     recognitionRef.current = recognition;
+
+    return () => {
+      recognition.onresult = null;
+      recognition.onstart = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      try {
+        recognition.stop();
+      } catch {
+        // ignore
+      }
+    };
   }, []);
 
   function speakQuestion(text: string) {
@@ -97,22 +123,56 @@ export default function InterviewPrep({
     }
   }
 
-  function toggleRecording() {
+  async function toggleRecording() {
     if (!recognitionRef.current) return;
+
     if (isRecording) {
-      recognitionRef.current.stop();
-      setIsRecording(false);
-    } else {
-      setTranscript("");
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    setError(null);
+
+    // Explicitly request mic permission first. Some browsers won't reliably
+    // prompt for it just from calling SpeechRecognition.start().
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setError("Microphone access was denied. Allow mic permissions in your browser and try again.");
+      return;
+    }
+
+    setTranscript("");
+    try {
       recognitionRef.current.start();
-      setIsRecording(true);
+    } catch {
+      // Most common cause: engine thinks a previous session is still active.
+      try {
+        recognitionRef.current.stop();
+        setTimeout(() => {
+          try {
+            recognitionRef.current?.start();
+          } catch {
+            setError("Couldn't start the microphone. Please try again.");
+          }
+        }, 250);
+      } catch {
+        setError("Couldn't start the microphone. Please try again.");
+      }
     }
   }
 
   async function submitAnswer() {
     if (isRecording) {
-      recognitionRef.current?.stop();
-      setIsRecording(false);
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        // ignore
+      }
     }
     if (!transcript.trim()) {
       setError("Record an answer first.");
