@@ -125,7 +125,8 @@ export default function InterviewPrep({
 
   async function toggleRecording() {
     if (!recognitionRef.current) return;
-
+recognition.onaudiostart = () => console.log("✅ audio capture started");
+recognition.onspeechstart = () => console.log("✅ speech detected");
     if (isRecording) {
       try {
         recognitionRef.current.stop();
